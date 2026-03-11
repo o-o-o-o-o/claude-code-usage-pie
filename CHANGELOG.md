@@ -2,6 +2,17 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.7]
+
+- Tooltip emoji labels: ⏳ for block window, 🗓️ for weekly, Ⓞ for Opus
+- Weekly reset time now shows short format (e.g. "Mon 9 AM") instead of "Mon 9:00 AM"
+- Percentage hidden from tooltip progress bar rows
+- Added Settings link to tooltip for quick access to extension configuration
+
+## [0.0.6]
+
+- Enhanced status bar tooltip formatting
+
 ## [0.0.5]
 
 - Infer 5-hour session boundaries from JSONL timestamps instead of rolling window — closer to Anthropic's actual session model

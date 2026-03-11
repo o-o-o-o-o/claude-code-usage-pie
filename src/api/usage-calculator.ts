@@ -72,11 +72,12 @@ export class UsageCalculator {
     if (isNaN(d.getTime())) {
       return '';
     }
-    const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     if (type === 'weekly') {
       const dayStr = d.toLocaleDateString([], { weekday: 'short' });
-      return `${dayStr} ${timeStr}`;
+      const hourStr = d.toLocaleTimeString([], { hour: 'numeric' });
+      return `${dayStr} ${hourStr}`;
     }
+    const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     return timeStr;
   }
 
@@ -85,24 +86,24 @@ export class UsageCalculator {
 
     const formatRow = (label: string, utilization: number, resetStr: string): string => {
       const bar = this.getProgressBar(utilization, BAR_WIDTH);
-      const perc = Math.round(utilization).toString().padStart(3);
+      // const perc = Math.round(utilization).toString().padStart(3);
       const reset = utilization > 0 && resetStr ? `   ${resetStr}` : '';
-      return `${label.padEnd(7)} ${bar}  ${perc}%${reset}`;
+      return `${label.padEnd(4)} ${bar}${reset}`;
     };
 
     const rows: string[] = [];
 
     if (usage.five_hour) {
       const resetStr = this.formatResetTimeAbsolute(usage.five_hour.resets_at, 'block');
-      rows.push(formatRow('Block', usage.five_hour.utilization, resetStr));
+      rows.push(formatRow('⏳', usage.five_hour.utilization, resetStr));
     }
     if (usage.seven_day) {
       const resetStr = this.formatResetTimeAbsolute(usage.seven_day.resets_at, 'weekly');
-      rows.push(formatRow('Weekly', usage.seven_day.utilization, resetStr));
+      rows.push(formatRow('🗓️', usage.seven_day.utilization, resetStr));
     }
     if (usage.seven_day_opus) {
       const resetStr = this.formatResetTimeAbsolute(usage.seven_day_opus.resets_at, 'weekly');
-      rows.push(formatRow('Opus', usage.seven_day_opus.utilization, resetStr));
+      rows.push(formatRow('Ⓞ', usage.seven_day_opus.utilization, resetStr));
     }
 
     return rows.join('\n');
