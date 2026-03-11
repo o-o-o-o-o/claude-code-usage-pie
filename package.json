@@ -1,0 +1,175 @@
+{
+  "name": "claude-code-usage-pie",
+  "displayName": "Claude Code Usage Pie",
+  "description": "Monitor Claude Code usage in VS Code with Unicode pie indicators in the status bar",
+  "publisher": "design-services",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/claude-code-usage-pie.git"
+  },
+  "version": "0.0.5",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claude-code-usage-pie.refresh",
+        "title": "Claude Code Usage Pie: Refresh Claude Usage"
+      },
+      {
+        "command": "claude-code-usage-pie.login",
+        "title": "Claude Code Usage Pie: Login to Claude"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Code Usage Pie",
+      "properties": {
+        "claudeCodeUsagePie.updateInterval": {
+          "type": "number",
+          "default": 300,
+          "minimum": 60,
+          "description": "How often usage is refreshed, in seconds."
+        },
+        "claudeCodeUsagePie.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings when usage exceeds the threshold."
+        },
+        "claudeCodeUsagePie.warningThreshold": {
+          "type": "number",
+          "default": 90,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Usage percentage that triggers a warning."
+        },
+        "claudeCodeUsagePie.usageDataSource": {
+          "type": "string",
+          "enum": [
+            "localFirst",
+            "apiOnly"
+          ],
+          "default": "localFirst",
+          "description": "Where usage comes from: local JSONL first with API calibration, or API only."
+        },
+        "claudeCodeUsagePie.apiSyncIntervalMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "description": "How often API calibration runs when local-first mode is enabled, in minutes."
+        },
+        "claudeCodeUsagePie.disableApiSync": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable all API calls. Use local JSONL parsing only (no authentication errors or API noise)."
+        },
+        "claudeCodeUsagePie.localFiveHourLimit": {
+          "type": "number",
+          "default": 5000000,
+          "minimum": 1,
+          "description": "Fallback 5-hour token limit used in local mode when API limits are unavailable."
+        },
+        "claudeCodeUsagePie.localSevenDayLimit": {
+          "type": "number",
+          "default": 200000000,
+          "minimum": 1,
+          "description": "Fallback 7-day token limit used in local mode when API limits are unavailable."
+        },
+        "claudeCodeUsagePie.localSevenDayOpusLimit": {
+          "type": "number",
+          "default": 50000000,
+          "minimum": 1,
+          "description": "Fallback 7-day Opus token limit used in local mode when API limits are unavailable."
+        },
+        "claudeCodeUsagePie.statusBarTemplate": {
+          "type": "string",
+          "default": "{pie} Claude {perc}",
+          "description": "Status bar text template. Supported placeholders: {pie}, {perc}, {percent}. Example pie-only: {pie}."
+        },
+        "claudeCodeUsagePie.statusBarSymbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "○",
+            "◔",
+            "◑",
+            "◕",
+            "●"
+          ],
+          "description": "Symbols for usage progression from 0% to 100%. First item is 0%, last item is 100%."
+        },
+        "claudeCodeUsagePie.weeklyResetDay": {
+          "type": "string",
+          "enum": [
+            "rolling",
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday"
+          ],
+          "default": "rolling",
+          "description": "Day of the week when the 7-day usage window resets. Set to 'rolling' for a standard rolling 7-day window."
+        },
+        "claudeCodeUsagePie.weeklyResetHour": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Hour of day (0-23, local time) when the weekly usage window resets. Only applies when weeklyResetDay is not 'rolling'."
+        },
+        "claudeCodeUsagePie.weeklyStatusBarSymbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Optional symbols for weekly (7-day) usage in the status bar. Use {weekPie} in statusBarTemplate to display it. Falls back to statusBarSymbols if empty."
+        }
+      }
+    }
+  },
+  "icon": "icon.png",
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "clean": "rm -rf dist out *.vsix",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "node scripts/watch.mjs",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "package:vsix": "vsce package",
+    "verify": "npm run compile",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.54.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "@vscode/vsce": "^3.6.0",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.3",
+    "esbuild-node-externals": "^1.20.1",
+    "esbuild-visualizer": "^0.7.0",
+    "eslint": "^10.0.3",
+    "typescript": "^5.9.3"
+  }
+}
