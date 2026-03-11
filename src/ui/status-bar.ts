@@ -25,7 +25,13 @@ export class StatusBarManager implements vscode.Disposable {
       config.statusBarSymbols,
       config.weeklyStatusBarSymbols
     );
-    this.statusBarItem.tooltip = `${UsageCalculator.getTooltip(usage)}\n\nClick to refresh`;
+    const tooltipBody = UsageCalculator.getTooltip(usage);
+    const md = new vscode.MarkdownString();
+    md.isTrusted = true;
+    md.appendMarkdown('**Claude Code Usage**\n\n');
+    md.appendCodeblock(tooltipBody);
+    md.appendMarkdown('[View usage on Claude.ai](https://claude.ai/settings/usage)  •  *Click to refresh*');
+    this.statusBarItem.tooltip = md;
     this.statusBarItem.command = 'claude-code-usage-pie.refresh';
 
     if (level === UsageLevel.Critical) {

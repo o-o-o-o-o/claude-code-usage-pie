@@ -58,55 +58,54 @@ export class UsageCalculator {
       .trim();
   }
 
-  static formatResetTime(resetsAt: string | null): string {
+  private static getProgressBar(utilization: number, width: number = 20): string {
+    const bounded = Math.max(0, Math.min(100, utilization));
+    const filled = Math.round((bounded / 100) * width);
+    return '█'.repeat(filled) + '░'.repeat(width - filled);
+  }
+
+  private static formatResetTimeAbsolute(resetsAt: string | null, type: 'block' | 'weekly'): string {
     if (!resetsAt) {
-      return 'Unknown';
+      return '';
     }
-
-    const resetDate = new Date(resetsAt);
-    if (isNaN(resetDate.getTime())) {
-      return 'Invalid';
+    const d = new Date(resetsAt);
+    if (isNaN(d.getTime())) {
+      return '';
     }
-
-    const diffMs = resetDate.getTime() - Date.now();
-    if (diffMs < 0) {
-      return 'Resetting soon...';
+    const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (type === 'weekly') {
+      const dayStr = d.toLocaleDateString([], { weekday: 'short' });
+      return `${dayStr} ${timeStr}`;
     }
-
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      const remHours = hours % 24;
-      return `${days}d ${remHours}h`;
-    }
-
-    return `${hours}h ${minutes}m`;
+    return timeStr;
   }
 
   static getTooltip(usage: ClaudeUsage): string {
-    const lines: string[] = ['Claude Code Usage'];
+    const BAR_WIDTH = 20;
+
+    const formatRow = (label: string, utilization: number, resetStr: string): string => {
+      const bar = this.getProgressBar(utilization, BAR_WIDTH);
+      const perc = Math.round(utilization).toString().padStart(3);
+      const reset = utilization > 0 && resetStr ? `   ${resetStr}` : '';
+      return `${label.padEnd(7)} ${bar}  ${perc}%${reset}`;
+    };
+
+    const rows: string[] = [];
 
     if (usage.five_hour) {
-      lines.push(
-        `5-Hour: ${this.formatUtilization(usage.five_hour.utilization)} (resets in ${this.formatResetTime(usage.five_hour.resets_at)})`
-      );
+      const resetStr = this.formatResetTimeAbsolute(usage.five_hour.resets_at, 'block');
+      rows.push(formatRow('Block', usage.five_hour.utilization, resetStr));
     }
-
     if (usage.seven_day) {
-      lines.push(
-        `7-Day: ${this.formatUtilization(usage.seven_day.utilization)} (resets in ${this.formatResetTime(usage.seven_day.resets_at)})`
-      );
+      const resetStr = this.formatResetTimeAbsolute(usage.seven_day.resets_at, 'weekly');
+      rows.push(formatRow('Weekly', usage.seven_day.utilization, resetStr));
     }
-
     if (usage.seven_day_opus) {
-      lines.push(
-        `7-Day Opus: ${this.formatUtilization(usage.seven_day_opus.utilization)} (resets in ${this.formatResetTime(usage.seven_day_opus.resets_at)})`
-      );
+      const resetStr = this.formatResetTimeAbsolute(usage.seven_day_opus.resets_at, 'weekly');
+      rows.push(formatRow('Opus', usage.seven_day_opus.utilization, resetStr));
     }
 
-    return lines.join('\n');
+    return rows.join('\n');
   }
 
   static shouldShowWarning(usage: ClaudeUsage, threshold: number, lastWarningTime: number | null): boolean {
