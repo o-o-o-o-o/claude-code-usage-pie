@@ -2,6 +2,12 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.8]
+
+- Fixed weekly reset time showing 1 hour late after DST change (e.g. "Fri 10 AM" → "Fri 9 AM")
+- Aligned tooltip progress bars — emoji label spacing now accounts for variation selectors in 🗓️
+- Tighter spacing between label emoji and progress bar (1 space)
+
 ## [0.0.7]
 
 - Tooltip emoji labels: ⏳ for block window, 🗓️ for weekly, Ⓞ for Opus

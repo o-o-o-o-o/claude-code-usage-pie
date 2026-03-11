@@ -86,9 +86,14 @@ export class UsageCalculator {
 
     const formatRow = (label: string, utilization: number, resetStr: string): string => {
       const bar = this.getProgressBar(utilization, BAR_WIDTH);
-      // const perc = Math.round(utilization).toString().padStart(3);
-      const reset = utilization > 0 && resetStr ? `   ${resetStr}` : '';
-      return `${label.padEnd(4)} ${bar}${reset}`;
+      const reset = utilization > 0 && resetStr ? `  ${resetStr}` : '';
+      // padEnd uses JS string length, not visual width.
+      // Surrogate pairs (SMP emoji like 🗓) count as 2 in .length but 1 visual char.
+      // Variation selectors (U+FE0F) count as 1 in .length but add no visual width.
+      // Adding both to the padEnd target ensures 🗓️ gets the same trailing space as ⏳ and Ⓞ.
+      const surrogates = [...label].filter(c => (c.codePointAt(0) ?? 0) > 0xFFFF).length;
+      const invisible = [...label].filter(c => { const cp = c.codePointAt(0) ?? 0; return cp >= 0xFE00 && cp <= 0xFE0F; }).length;
+      return `${label.padEnd(2 + invisible + surrogates)} ${bar}${reset}`;
     };
 
     const rows: string[] = [];

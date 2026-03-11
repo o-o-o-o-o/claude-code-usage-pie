@@ -152,7 +152,7 @@ export class JsonlUsageReader {
 
       const fiveHourReset = new Date(sessionStart.getTime() + SESSION_WINDOW_MS).toISOString();
       const sevenDayReset = weeklyReset
-        ? new Date(sevenDaysAgo.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        ? (() => { const d = new Date(sevenDaysAgo); d.setDate(d.getDate() + 7); return d.toISOString(); })()
         : (resetAnchors?.sevenDayResetsAt ?? this.getResetTime(7 * 24 * 60 * 60 * 1000));
       const sevenDayOpusReset = weeklyReset
         ? sevenDayReset

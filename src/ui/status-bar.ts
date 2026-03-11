@@ -30,7 +30,7 @@ export class StatusBarManager implements vscode.Disposable {
     md.isTrusted = true;
     md.appendMarkdown('**Claude Code Usage**\n\n');
     md.appendCodeblock(tooltipBody);
-    md.appendMarkdown('[View usage](https://claude.ai/settings/usage)  •  [Settings](command:workbench.action.openSettings?%5B%22claude-code-usage-pie%22%5D))');
+    md.appendMarkdown('[View usage](https://claude.ai/settings/usage)  •  [Settings](command:workbench.action.openSettings?%5B%22claude-code-usage-pie%22%5D)');
     this.statusBarItem.tooltip = md;
     this.statusBarItem.command = 'claude-code-usage-pie.refresh';
 
