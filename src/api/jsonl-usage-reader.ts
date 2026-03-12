@@ -199,6 +199,18 @@ export class JsonlUsageReader {
       }
     }
 
+    // If the block has expired (sessionStart + window < now), re-detect using only
+    // timestamps after the block expired. Handles continuous usage crossing a boundary.
+    if (now.getTime() - sessionStartMs > windowMs) {
+      const blockExpiry = sessionStartMs + windowMs;
+      const afterExpiry = sortedTimestamps.filter(ts => ts >= blockExpiry);
+      if (afterExpiry.length === 0) {
+        // No activity after block expired — no active block, usage is zero
+        return now;
+      }
+      return this.findSessionStart(afterExpiry, now, windowMs);
+    }
+
     return new Date(sessionStartMs);
   }
 

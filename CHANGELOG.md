@@ -2,6 +2,10 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.9]
+
+- Fixed block usage not resetting after the 5-hour window expires — continuous sessions crossing a block boundary now correctly show only tokens from the new block
+
 ## [0.0.8]
 
 - Fixed weekly reset time showing 1 hour late after DST change (e.g. "Fri 10 AM" → "Fri 9 AM")
