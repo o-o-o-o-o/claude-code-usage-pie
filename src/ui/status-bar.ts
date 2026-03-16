@@ -53,7 +53,6 @@ export class StatusBarManager implements vscode.Disposable {
 
   showError(message: string): void {
     this.statusBarItem.text = `◍ Claude: ${message}`;
-    // Different command based on error type
     const isRateLimit = message.includes('rate') || message.includes('limit');
     if (isRateLimit) {
       this.statusBarItem.tooltip = 'Rate limited by API. Using cached data. Will retry in ~60s';

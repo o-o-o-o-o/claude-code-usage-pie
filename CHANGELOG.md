@@ -2,6 +2,10 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.10]
+
+- Removed GitHub Copilot integration (Copilot's free/individual plan API does not expose premium requests as a trackable quota — only business/enterprise plans do via a different endpoint)
+
 ## [0.0.9]
 
 - Fixed block usage not resetting after the 5-hour window expires — continuous sessions crossing a block boundary now correctly show only tokens from the new block

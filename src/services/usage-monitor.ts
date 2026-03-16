@@ -196,6 +196,7 @@ export class UsageMonitor {
           this.lastWarningTime = Date.now();
         }
       }
+
     } finally {
       this.isUpdating = false;
     }

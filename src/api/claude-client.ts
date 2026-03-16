@@ -38,7 +38,8 @@ export class ClaudeClient {
       const headers: Record<string, string> = {
         Authorization: `Bearer ${this.token}`,
         Accept: 'application/json',
-        'User-Agent': 'claude-code-usage-pie'
+        'User-Agent': 'claude-code-usage-pie',
+        'anthropic-beta': 'oauth-2025-04-20'
       };
 
       if (this.accountId) {

@@ -75,6 +75,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const nextConfig = getConfig();
         logRuntimeConfig(output, nextConfig, 'config-change');
         usageMonitor?.updateConfig(nextConfig);
+
       }
     })
   );
@@ -105,7 +106,6 @@ function getConfig(): ExtensionConfig {
     : [];
   const weeklyResetDay = config.get<string>('weeklyResetDay', 'rolling');
   const weeklyResetHour = Math.min(23, Math.max(0, config.get<number>('weeklyResetHour', 0)));
-
   return {
     updateInterval,
     warningThreshold,
