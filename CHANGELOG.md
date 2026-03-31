@@ -2,6 +2,10 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.12]
+
+- Fixed weekly usage showing as 100% — cache read tokens are no longer counted toward the 7-day limit (they don't factor into Anthropic's reported weekly utilization), while still being counted in the 5-hour block to match Claude Code's session meter
+
 ## [0.0.11]
 
 - Session usage now matches Claude Code's own tracking — cache read tokens are included in the count, fixing ~30-40% underreporting in typical sessions

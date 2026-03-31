@@ -21,6 +21,7 @@ interface JsonlRecord {
 interface TimestampedRecord {
   ts: number;
   tokens: number;
+  tokensNoCacheRead: number;
   isOpus: boolean;
 }
 
@@ -137,9 +138,9 @@ export class JsonlUsageReader {
         if (r.ts >= sessionStart.getTime()) {
           totals.fiveHourTokens += r.tokens;
         }
-        totals.sevenDayTokens += r.tokens;
+        totals.sevenDayTokens += r.tokensNoCacheRead;
         if (r.isOpus) {
-          totals.sevenDayOpusTokens += r.tokens;
+          totals.sevenDayOpusTokens += r.tokensNoCacheRead;
         }
       }
 
@@ -227,7 +228,7 @@ export class JsonlUsageReader {
       }
       try {
         const record = JSON.parse(line) as JsonlRecord;
-        const tokens = this.extractTokensFromRecord(record);
+        const { tokens, tokensNoCacheRead } = this.extractTokensFromRecord(record);
         if (tokens === 0) {
           continue;
         }
@@ -235,7 +236,7 @@ export class JsonlUsageReader {
         if (!date || date < cutoff) {
           continue;
         }
-        records.push({ ts: date.getTime(), tokens, isOpus: this.isOpusRecord(record) });
+        records.push({ ts: date.getTime(), tokens, tokensNoCacheRead, isOpus: this.isOpusRecord(record) });
       } catch {
         continue;
       }
@@ -254,22 +255,22 @@ export class JsonlUsageReader {
   }
 
   /**
-   * Extract tokens that count toward usage limits from a JSONL record.
-   * All token types are included to match Claude Code's own session limit tracking.
+   * Extract tokens from a JSONL record.
+   * Returns both the full count (including cache reads, for the 5-hour block) and
+   * the count without cache reads (for the 7-day limit, which matches Anthropic's reported utilization).
    */
-  private static extractTokensFromRecord(record: JsonlRecord): number {
-    // Claude Code stores usage in message.usage
+  private static extractTokensFromRecord(record: JsonlRecord): { tokens: number; tokensNoCacheRead: number } {
     if (!record.message?.usage) {
-      return 0;
+      return { tokens: 0, tokensNoCacheRead: 0 };
     }
 
     const usage = record.message.usage;
-    return (
+    const base =
       (usage.input_tokens ?? 0) +
       (usage.output_tokens ?? 0) +
-      (usage.cache_creation_input_tokens ?? 0) +
-      (usage.cache_read_input_tokens ?? 0)
-    );
+      (usage.cache_creation_input_tokens ?? 0);
+    const cacheRead = usage.cache_read_input_tokens ?? 0;
+    return { tokens: base + cacheRead, tokensNoCacheRead: base };
   }
 
   /**
