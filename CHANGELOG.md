@@ -2,6 +2,11 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.11]
+
+- Session usage now matches Claude Code's own tracking — cache read tokens are included in the count, fixing ~30-40% underreporting in typical sessions
+- Block reset time in tooltip now shows just the hour (e.g. "8 PM" instead of "8:06 PM"), matching Claude Code's display style
+
 ## [0.0.10]
 
 - Removed GitHub Copilot integration (Copilot's free/individual plan API does not expose premium requests as a trackable quota — only business/enterprise plans do via a different endpoint)

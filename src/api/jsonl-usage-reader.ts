@@ -255,8 +255,7 @@ export class JsonlUsageReader {
 
   /**
    * Extract tokens that count toward usage limits from a JSONL record.
-   * Cache reads (cache_read_input_tokens) are excluded — they are served at
-   * reduced cost and do not count toward rate limits the same way.
+   * All token types are included to match Claude Code's own session limit tracking.
    */
   private static extractTokensFromRecord(record: JsonlRecord): number {
     // Claude Code stores usage in message.usage
@@ -268,8 +267,8 @@ export class JsonlUsageReader {
     return (
       (usage.input_tokens ?? 0) +
       (usage.output_tokens ?? 0) +
-      (usage.cache_creation_input_tokens ?? 0)
-      // cache_read_input_tokens intentionally excluded: not counted toward limits
+      (usage.cache_creation_input_tokens ?? 0) +
+      (usage.cache_read_input_tokens ?? 0)
     );
   }
 

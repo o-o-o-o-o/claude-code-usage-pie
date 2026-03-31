@@ -77,7 +77,7 @@ export class UsageCalculator {
       const hourStr = d.toLocaleTimeString([], { hour: 'numeric' });
       return `${dayStr} ${hourStr}`;
     }
-    const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const timeStr = d.toLocaleTimeString([], { hour: 'numeric' });
     return timeStr;
   }
 
