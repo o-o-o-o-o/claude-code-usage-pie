@@ -2,6 +2,12 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.13]
+
+- Fixed severe over-counting: each API call was stored 2-3× in JSONL (streaming artefact) and all copies were summed, inflating session usage 2-3× — now deduplicated by message ID, keeping the complete response
+- Fixed cache read token weighting: previously counted at full weight (causing 10-20× inflation) or excluded entirely (causing under-counting) — now weighted at 0.1× to match Anthropic's pricing ratio, which empirically aligns with the Claude website's reported percentages
+- Added TROUBLESHOOTING.md documenting the root causes, the reverse-engineered counting formula, and a checklist for diagnosing future drift
+
 ## [0.0.12]
 
 - Fixed weekly usage showing as 100% — cache read tokens are no longer counted toward the 7-day limit (they don't factor into Anthropic's reported weekly utilization), while still being counted in the 5-hour block to match Claude Code's session meter

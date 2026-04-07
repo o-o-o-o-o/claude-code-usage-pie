@@ -5,6 +5,7 @@ import { ClaudeUsage } from '../types';
 
 interface JsonlRecord {
   message?: {
+    id?: string;
     model?: string;
     usage?: {
       input_tokens?: number;
@@ -21,8 +22,9 @@ interface JsonlRecord {
 interface TimestampedRecord {
   ts: number;
   tokens: number;
-  tokensNoCacheRead: number;
+  outputTokens: number;
   isOpus: boolean;
+  msgId?: string;
 }
 
 export interface LocalUsageTotals {
@@ -111,7 +113,7 @@ export class JsonlUsageReader {
       const mergedLimits = this.mergeLimits(limits);
 
       // Collect all timestamped records from the past 7 days in one pass
-      const allRecords: TimestampedRecord[] = [];
+      const rawRecords: TimestampedRecord[] = [];
       for (const file of this.findJsonlFiles(dirPath)) {
         try {
           const mtime = fs.statSync(file).mtime;
@@ -121,15 +123,20 @@ export class JsonlUsageReader {
         } catch {
           // If stat fails, fall through and try to parse the file anyway
         }
-        allRecords.push(...this.parseJsonlFile(file, sevenDaysAgo));
+        rawRecords.push(...this.parseJsonlFile(file, sevenDaysAgo));
       }
+
+      // Deduplicate by message ID: each API call is written 2-3x (streaming
+      // produces partial records before the final complete response). Keep the
+      // record with the most output tokens — that is the complete response.
+      const allRecords = this.deduplicateByMsgId(rawRecords);
 
       // Infer the current session start from timestamps in the last 10h
       const tenHoursAgo = now.getTime() - 2 * SESSION_WINDOW_MS;
       const recentTimestamps = allRecords
-        .filter(r => r.ts >= tenHoursAgo)
-        .map(r => r.ts)
-        .sort((a, b) => a - b);
+        .filter((r: TimestampedRecord) => r.ts >= tenHoursAgo)
+        .map((r: TimestampedRecord) => r.ts)
+        .sort((a: number, b: number) => a - b);
       const sessionStart = this.findSessionStart(recentTimestamps, now, SESSION_WINDOW_MS);
 
       // Aggregate token counts
@@ -138,9 +145,9 @@ export class JsonlUsageReader {
         if (r.ts >= sessionStart.getTime()) {
           totals.fiveHourTokens += r.tokens;
         }
-        totals.sevenDayTokens += r.tokensNoCacheRead;
+        totals.sevenDayTokens += r.tokens;
         if (r.isOpus) {
-          totals.sevenDayOpusTokens += r.tokensNoCacheRead;
+          totals.sevenDayOpusTokens += r.tokens;
         }
       }
 
@@ -171,6 +178,30 @@ export class JsonlUsageReader {
       console.error('[JsonlUsageReader] Error calculating usage:', error);
       return null;
     }
+  }
+
+  /**
+   * Deduplicate records by API message ID.
+   * Streaming writes 2-3 JSONL entries per API call (partial + final). We keep
+   * the entry with the highest outputTokens since that is the complete response.
+   * Records without a msgId are kept as-is (no dedup possible).
+   */
+  private static deduplicateByMsgId(records: TimestampedRecord[]): TimestampedRecord[] {
+    const byMsgId = new Map<string, TimestampedRecord>();
+    const noId: TimestampedRecord[] = [];
+
+    for (const r of records) {
+      if (!r.msgId) {
+        noId.push(r);
+        continue;
+      }
+      const existing = byMsgId.get(r.msgId);
+      if (!existing || r.outputTokens > existing.outputTokens) {
+        byMsgId.set(r.msgId, r);
+      }
+    }
+
+    return [...byMsgId.values(), ...noId];
   }
 
   /**
@@ -228,7 +259,7 @@ export class JsonlUsageReader {
       }
       try {
         const record = JSON.parse(line) as JsonlRecord;
-        const { tokens, tokensNoCacheRead } = this.extractTokensFromRecord(record);
+        const { tokens, outputTokens } = this.extractTokensFromRecord(record);
         if (tokens === 0) {
           continue;
         }
@@ -236,7 +267,8 @@ export class JsonlUsageReader {
         if (!date || date < cutoff) {
           continue;
         }
-        records.push({ ts: date.getTime(), tokens, tokensNoCacheRead, isOpus: this.isOpusRecord(record) });
+        const msgId = record.message?.id;
+        records.push({ ts: date.getTime(), tokens, outputTokens, isOpus: this.isOpusRecord(record), msgId });
       } catch {
         continue;
       }
@@ -256,21 +288,24 @@ export class JsonlUsageReader {
 
   /**
    * Extract tokens from a JSONL record.
-   * Returns both the full count (including cache reads, for the 5-hour block) and
-   * the count without cache reads (for the 7-day limit, which matches Anthropic's reported utilization).
+   * Cache read tokens are weighted at 0.1x (matching Anthropic's pricing ratio).
+   * Counting them at full weight inflates totals ~10-20x; excluding them under-counts.
+   * Empirically, inp + out + cache_creation + cache_read * 0.1 (with deduplication)
+   * matches the percentages shown in Claude's own usage UI.
    */
-  private static extractTokensFromRecord(record: JsonlRecord): { tokens: number; tokensNoCacheRead: number } {
+  private static extractTokensFromRecord(record: JsonlRecord): { tokens: number; outputTokens: number } {
     if (!record.message?.usage) {
-      return { tokens: 0, tokensNoCacheRead: 0 };
+      return { tokens: 0, outputTokens: 0 };
     }
 
     const usage = record.message.usage;
-    const base =
+    const outputTokens = usage.output_tokens ?? 0;
+    const tokens =
       (usage.input_tokens ?? 0) +
-      (usage.output_tokens ?? 0) +
-      (usage.cache_creation_input_tokens ?? 0);
-    const cacheRead = usage.cache_read_input_tokens ?? 0;
-    return { tokens: base + cacheRead, tokensNoCacheRead: base };
+      outputTokens +
+      (usage.cache_creation_input_tokens ?? 0) +
+      (usage.cache_read_input_tokens ?? 0) * 0.1;
+    return { tokens, outputTokens };
   }
 
   /**
