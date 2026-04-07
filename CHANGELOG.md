@@ -2,6 +2,10 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.14]
+
+- Fixed 5-hour session showing higher than actual when API sync is disabled — stale limit calibrations from old API responses were persisted in VSCode state and silently overriding the configured limits; now ignored when `disableApiSync` is true
+
 ## [0.0.13]
 
 - Fixed severe over-counting: each API call was stored 2-3× in JSONL (streaming artefact) and all copies were summed, inflating session usage 2-3× — now deduplicated by message ID, keeping the complete response

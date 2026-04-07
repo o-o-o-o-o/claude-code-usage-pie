@@ -13,9 +13,6 @@ export interface ExtensionConfig {
   updateInterval: number;
   showNotifications: boolean;
   warningThreshold: number;
-  usageDataSource: 'localFirst' | 'apiOnly';
-  apiSyncIntervalMinutes: number;
-  disableApiSync: boolean;
   localFiveHourLimit: number;
   localSevenDayLimit: number;
   localSevenDayOpusLimit: number;
