@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { JsonlUsageReader, UsageLimits, WeeklyResetConfig } from '../api/jsonl-usage-reader';
 import { UsageCalculator } from '../api/usage-calculator';
+import { KeychainClient } from '../api/keychain-client';
+import { AnthropicUsageClient } from '../api/anthropic-usage-client';
 import { ClaudeUsage, ExtensionConfig } from '../types';
 
 export class UsageMonitor {
@@ -44,14 +46,10 @@ export class UsageMonitor {
 
     this.isUpdating = true;
     try {
-      const snapshot = await JsonlUsageReader.readUsageSnapshotFromLocal(
-        this.getLimits(),
-        undefined,
-        this.getWeeklyResetConfig()
-      );
+      const usage = await this.fetchUsage();
 
-      if (snapshot?.usage) {
-        this.currentUsage = snapshot.usage;
+      if (usage) {
+        this.currentUsage = usage;
         this.notifyUpdate();
 
         if (this.config.showNotifications) {
@@ -67,10 +65,28 @@ export class UsageMonitor {
         }
       }
     } catch (error) {
-      console.error('[UsageMonitor] Failed to read local usage:', error instanceof Error ? error.message : String(error));
+      console.error('[UsageMonitor] Failed to read usage:', error instanceof Error ? error.message : String(error));
     } finally {
       this.isUpdating = false;
     }
+  }
+
+  private async fetchUsage(): Promise<ClaudeUsage | null> {
+    const token = await KeychainClient.getClaudeAccessToken();
+    if (token) {
+      const apiUsage = await AnthropicUsageClient.fetchUsage(token);
+      if (apiUsage) {
+        return apiUsage;
+      }
+      console.warn('[UsageMonitor] API fetch failed, falling back to JSONL');
+    }
+
+    const snapshot = await JsonlUsageReader.readUsageSnapshotFromLocal(
+      this.getLimits(),
+      undefined,
+      this.getWeeklyResetConfig()
+    );
+    return snapshot?.usage ?? null;
   }
 
   private schedule(): void {

@@ -7,6 +7,7 @@ export interface ClaudeUsage {
   five_hour?: UsageWindow;
   seven_day?: UsageWindow;
   seven_day_opus?: UsageWindow;
+  seven_day_sonnet?: UsageWindow;
 }
 
 export interface ExtensionConfig {

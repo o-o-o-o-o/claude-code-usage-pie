@@ -7,7 +7,8 @@ export class UsageCalculator {
     return Math.max(
       usage.five_hour?.utilization ?? 0,
       usage.seven_day?.utilization ?? 0,
-      usage.seven_day_opus?.utilization ?? 0
+      usage.seven_day_opus?.utilization ?? 0,
+      usage.seven_day_sonnet?.utilization ?? 0
     );
   }
 
@@ -110,6 +111,10 @@ export class UsageCalculator {
       const resetStr = this.formatResetTimeAbsolute(usage.seven_day_opus.resets_at, 'weekly');
       rows.push(formatRow('Ⓞ', usage.seven_day_opus.utilization, resetStr));
     }
+    if (usage.seven_day_sonnet) {
+      const resetStr = this.formatResetTimeAbsolute(usage.seven_day_sonnet.resets_at, 'weekly');
+      rows.push(formatRow('Ⓢ', usage.seven_day_sonnet.utilization, resetStr));
+    }
 
     return rows.join('\n');
   }
@@ -139,6 +144,9 @@ export class UsageCalculator {
     }
     if (usage.seven_day_opus && usage.seven_day_opus.utilization >= 90) {
       parts.push(`7-day Opus: ${this.formatUtilization(usage.seven_day_opus.utilization)}`);
+    }
+    if (usage.seven_day_sonnet && usage.seven_day_sonnet.utilization >= 90) {
+      parts.push(`7-day Sonnet: ${this.formatUtilization(usage.seven_day_sonnet.utilization)}`);
     }
 
     return parts.length ? `Claude usage high: ${parts.join(', ')}` : 'Claude usage high';

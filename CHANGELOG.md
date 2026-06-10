@@ -2,6 +2,12 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.15]
+
+- Usage now comes directly from Anthropic's API (the same source Claude Code's `/usage` screen uses) — no more token counting or hard-coded limits, so percentages match exactly regardless of plan tier
+- Automatically falls back to JSONL-based counting when offline or not logged in
+- Added `seven_day_sonnet` window to tooltip (shown as Ⓢ) when reported by the API
+
 ## [0.0.14]
 
 - Fixed 5-hour session showing higher than actual when API sync is disabled — stale limit calibrations from old API responses were persisted in VSCode state and silently overriding the configured limits; now ignored when `disableApiSync` is true
