@@ -2,6 +2,11 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.16]
+
+- Limited the hover tooltip to the 5-hour and 7-day usage bars
+- Added a relative `Last updated` time to the hover tooltip
+
 ## [0.0.15]
 
 - Usage now comes directly from Anthropic's API (the same source Claude Code's `/usage` screen uses) — no more token counting or hard-coded limits, so percentages match exactly regardless of plan tier

@@ -25,7 +25,7 @@ export class StatusBarManager implements vscode.Disposable {
       config.statusBarSymbols,
       config.weeklyStatusBarSymbols
     );
-    const tooltipBody = UsageCalculator.getTooltip(usage);
+    const tooltipBody = UsageCalculator.getTooltip(usage, new Date());
     const md = new vscode.MarkdownString();
     md.isTrusted = true;
     md.appendMarkdown('**Claude Code Usage**\n\n');

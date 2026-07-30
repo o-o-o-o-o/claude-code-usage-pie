@@ -1,3 +1,5 @@
+.claude/**
+backlog/**
 .vscode/**
 .vscode-test/**
 out/**

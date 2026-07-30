@@ -82,7 +82,7 @@ export class UsageCalculator {
     return timeStr;
   }
 
-  static getTooltip(usage: ClaudeUsage): string {
+  static getTooltip(usage: ClaudeUsage, updatedAt: Date): string {
     const BAR_WIDTH = 20;
 
     const formatRow = (label: string, utilization: number, resetStr: string): string => {
@@ -107,16 +107,14 @@ export class UsageCalculator {
       const resetStr = this.formatResetTimeAbsolute(usage.seven_day.resets_at, 'weekly');
       rows.push(formatRow('🗓️', usage.seven_day.utilization, resetStr));
     }
-    if (usage.seven_day_opus) {
-      const resetStr = this.formatResetTimeAbsolute(usage.seven_day_opus.resets_at, 'weekly');
-      rows.push(formatRow('Ⓞ', usage.seven_day_opus.utilization, resetStr));
-    }
-    if (usage.seven_day_sonnet) {
-      const resetStr = this.formatResetTimeAbsolute(usage.seven_day_sonnet.resets_at, 'weekly');
-      rows.push(formatRow('Ⓢ', usage.seven_day_sonnet.utilization, resetStr));
-    }
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / 1_000));
+    const lastUpdated = elapsedSeconds < 60
+      ? 'just now'
+      : elapsedSeconds < 3_600
+        ? `${Math.floor(elapsedSeconds / 60)}m ago`
+        : `${Math.floor(elapsedSeconds / 3_600)}h ago`;
 
-    return rows.join('\n');
+    return [...rows, `Last updated: ${lastUpdated}`].join('\n');
   }
 
   static shouldShowWarning(usage: ClaudeUsage, threshold: number, lastWarningTime: number | null): boolean {
