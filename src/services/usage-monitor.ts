@@ -8,15 +8,16 @@ import { ClaudeUsage, ExtensionConfig } from '../types';
 export class UsageMonitor {
   private intervalHandle: NodeJS.Timeout | null = null;
   private currentUsage: ClaudeUsage | null = null;
+  private lastFetchAt: Date | null = null;
   private lastWarningTime: number | null = null;
-  private onUsageUpdated: ((usage: ClaudeUsage | null) => void) | null = null;
+  private onUsageUpdated: ((usage: ClaudeUsage | null, updatedAt: Date | null) => void) | null = null;
   private isUpdating = false;
 
   constructor(
     private config: ExtensionConfig,
   ) {}
 
-  async start(callback: (usage: ClaudeUsage | null) => void): Promise<void> {
+  async start(callback: (usage: ClaudeUsage | null, updatedAt: Date | null) => void): Promise<void> {
     this.onUsageUpdated = callback;
     // Immediate read so the status bar populates without waiting for the first interval.
     await this.updateUsage();
@@ -50,6 +51,7 @@ export class UsageMonitor {
 
       if (usage) {
         this.currentUsage = usage;
+        this.lastFetchAt = new Date();
         this.notifyUpdate();
 
         if (this.config.showNotifications) {
@@ -98,7 +100,7 @@ export class UsageMonitor {
 
   private notifyUpdate(): void {
     if (this.onUsageUpdated) {
-      this.onUsageUpdated(this.currentUsage);
+      this.onUsageUpdated(this.currentUsage, this.lastFetchAt);
     }
   }
 
@@ -110,17 +112,17 @@ export class UsageMonitor {
     };
   }
 
+  private static readonly DAY_NAMES = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+  ];
+
   private getWeeklyResetConfig(): WeeklyResetConfig | undefined {
     const { weeklyResetDay, weeklyResetHour } = this.config;
     if (weeklyResetDay === 'rolling') {
       return undefined;
     }
-    const dayMap: Record<string, number> = {
-      Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
-      Thursday: 4, Friday: 5, Saturday: 6
-    };
-    const dayOfWeek = dayMap[weeklyResetDay];
-    if (dayOfWeek === undefined) {
+    const dayOfWeek = UsageMonitor.DAY_NAMES.indexOf(weeklyResetDay);
+    if (dayOfWeek === -1) {
       return undefined;
     }
     return { dayOfWeek, hour: weeklyResetHour };

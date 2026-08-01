@@ -56,12 +56,18 @@ export class AnthropicUsageClient {
     return { utilization: w.utilization, resets_at: w.resets_at ?? null };
   }
 
+  private static readonly WINDOW_KEYS: (keyof ApiResponse)[] = [
+    'five_hour', 'seven_day', 'seven_day_opus', 'seven_day_sonnet'
+  ];
+
   private static parseResponse(json: ApiResponse): ClaudeUsage | null {
     const usage: ClaudeUsage = {};
-    if (json.five_hour) { usage.five_hour = this.toWindow(json.five_hour); }
-    if (json.seven_day) { usage.seven_day = this.toWindow(json.seven_day); }
-    if (json.seven_day_opus) { usage.seven_day_opus = this.toWindow(json.seven_day_opus); }
-    if (json.seven_day_sonnet) { usage.seven_day_sonnet = this.toWindow(json.seven_day_sonnet); }
+    for (const key of this.WINDOW_KEYS) {
+      const window = json[key];
+      if (window) {
+        usage[key] = this.toWindow(window);
+      }
+    }
     return Object.keys(usage).length > 0 ? usage : null;
   }
 }

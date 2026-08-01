@@ -58,6 +58,7 @@ export interface LocalUsageSnapshot {
 
 export class JsonlUsageReader {
   private static readonly CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
+  private static readonly SESSION_WINDOW_MS = 5 * 60 * 60 * 1000;
   private static readonly DEFAULT_LIMITS: UsageLimits = {
     fiveHourLimit: 5_000_000,
     sevenDayLimit: 200_000_000,
@@ -106,7 +107,6 @@ export class JsonlUsageReader {
   ): Promise<LocalUsageSnapshot | null> {
     try {
       const now = new Date();
-      const SESSION_WINDOW_MS = 5 * 60 * 60 * 1000;
       const sevenDaysAgo = weeklyReset
         ? this.getLastWeeklyReset(weeklyReset.dayOfWeek, weeklyReset.hour)
         : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -132,12 +132,12 @@ export class JsonlUsageReader {
       const allRecords = this.deduplicateByMsgId(rawRecords);
 
       // Infer the current session start from timestamps in the last 10h
-      const tenHoursAgo = now.getTime() - 2 * SESSION_WINDOW_MS;
+      const tenHoursAgo = now.getTime() - 2 * this.SESSION_WINDOW_MS;
       const recentTimestamps = allRecords
         .filter((r: TimestampedRecord) => r.ts >= tenHoursAgo)
         .map((r: TimestampedRecord) => r.ts)
         .sort((a: number, b: number) => a - b);
-      const sessionStart = this.findSessionStart(recentTimestamps, now, SESSION_WINDOW_MS);
+      const sessionStart = this.findSessionStart(recentTimestamps, now, this.SESSION_WINDOW_MS);
 
       // Aggregate token counts
       const totals: LocalUsageTotals = { fiveHourTokens: 0, sevenDayTokens: 0, sevenDayOpusTokens: 0 };
@@ -158,10 +158,8 @@ export class JsonlUsageReader {
         mergedLimits.sevenDayOpusLimit
       );
 
-      const fiveHourReset = new Date(sessionStart.getTime() + SESSION_WINDOW_MS).toISOString();
-      const sevenDayReset = weeklyReset
-        ? (() => { const d = new Date(sevenDaysAgo); d.setDate(d.getDate() + 7); return d.toISOString(); })()
-        : (resetAnchors?.sevenDayResetsAt ?? this.getResetTime(7 * 24 * 60 * 60 * 1000));
+      const fiveHourReset = new Date(sessionStart.getTime() + this.SESSION_WINDOW_MS).toISOString();
+      const sevenDayReset = this.getSevenDayReset(weeklyReset, sevenDaysAgo, resetAnchors?.sevenDayResetsAt);
       const sevenDayOpusReset = weeklyReset
         ? sevenDayReset
         : (resetAnchors?.sevenDayOpusResetsAt ?? this.getResetTime(7 * 24 * 60 * 60 * 1000));
@@ -331,6 +329,19 @@ export class JsonlUsageReader {
   private static getResetTime(windowMs: number): string {
     const resetTime = new Date(Date.now() + windowMs);
     return resetTime.toISOString();
+  }
+
+  private static getSevenDayReset(
+    weeklyReset: WeeklyResetConfig | undefined,
+    sevenDaysAgo: Date,
+    resetAnchor: string | null | undefined
+  ): string {
+    if (weeklyReset) {
+      const d = new Date(sevenDaysAgo);
+      d.setDate(d.getDate() + 7);
+      return d.toISOString();
+    }
+    return resetAnchor ?? this.getResetTime(7 * 24 * 60 * 60 * 1000);
   }
 
   /**

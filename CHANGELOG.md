@@ -2,6 +2,10 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.17]
+
+- Fixed the tooltip's `Last updated` time always showing "just now" — it was computed at render time instead of from the actual data fetch, so it now shows the real time the usage data was last refreshed
+
 ## [0.0.16]
 
 - Limited the hover tooltip to the 5-hour and 7-day usage bars

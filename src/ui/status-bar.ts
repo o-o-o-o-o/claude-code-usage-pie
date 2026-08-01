@@ -10,7 +10,7 @@ export class StatusBarManager implements vscode.Disposable {
     this.statusBarItem.command = 'claude-code-usage-pie.refresh';
   }
 
-  updateUsage(usage: ClaudeUsage | null, config: ExtensionConfig): void {
+  updateUsage(usage: ClaudeUsage | null, config: ExtensionConfig, updatedAt: Date | null = null): void {
     if (!usage) {
       this.showError('Unavailable');
       return;
@@ -25,7 +25,7 @@ export class StatusBarManager implements vscode.Disposable {
       config.statusBarSymbols,
       config.weeklyStatusBarSymbols
     );
-    const tooltipBody = UsageCalculator.getTooltip(usage, new Date());
+    const tooltipBody = UsageCalculator.getTooltip(usage, updatedAt ?? new Date());
     const md = new vscode.MarkdownString();
     md.isTrusted = true;
     md.appendMarkdown('**Claude Code Usage**\n\n');

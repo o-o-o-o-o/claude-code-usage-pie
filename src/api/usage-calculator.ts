@@ -107,12 +107,7 @@ export class UsageCalculator {
       const resetStr = this.formatResetTimeAbsolute(usage.seven_day.resets_at, 'weekly');
       rows.push(formatRow('🗓️', usage.seven_day.utilization, resetStr));
     }
-    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / 1_000));
-    const lastUpdated = elapsedSeconds < 60
-      ? 'just now'
-      : elapsedSeconds < 3_600
-        ? `${Math.floor(elapsedSeconds / 60)}m ago`
-        : `${Math.floor(elapsedSeconds / 3_600)}h ago`;
+    const lastUpdated = updatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     return [...rows, `Last updated: ${lastUpdated}`].join('\n');
   }

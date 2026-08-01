@@ -16,11 +16,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   statusBarManager.showLoading();
 
   try {
-    await usageMonitor.start((usage) => {
+    await usageMonitor.start((usage, updatedAt) => {
       if (!usage) {
         statusBarManager.showError('No data');
       } else {
-        statusBarManager.updateUsage(usage, getConfig());
+        statusBarManager.updateUsage(usage, getConfig(), updatedAt);
       }
     });
   } catch (error) {
@@ -55,35 +55,29 @@ export function deactivate(): void {
   usageMonitor?.stop();
 }
 
+function clamp(value: number, min: number, max: number = Infinity): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getSymbolsList(config: vscode.WorkspaceConfiguration, key: string, fallback: string[]): string[] {
+  const raw = config.get<string[]>(key, fallback);
+  const list = Array.isArray(raw) ? raw.map((item) => String(item)).filter((item) => item.length > 0) : [];
+  return list.length ? list : fallback;
+}
+
 function getConfig(): ExtensionConfig {
   const config = vscode.workspace.getConfiguration('claudeCodeUsagePie');
-  const updateInterval = Math.max(60, config.get<number>('updateInterval', 300));
-  const warningThreshold = Math.min(100, Math.max(0, config.get<number>('warningThreshold', 90)));
-  const localFiveHourLimit = Math.max(1, config.get<number>('localFiveHourLimit', 5_000_000));
-  const localSevenDayLimit = Math.max(1, config.get<number>('localSevenDayLimit', 200_000_000));
-  const localSevenDayOpusLimit = Math.max(1, config.get<number>('localSevenDayOpusLimit', 50_000_000));
-  const statusBarTemplate = config.get<string>('statusBarTemplate', '{pie} Claude {perc}');
-  const rawSymbols = config.get<string[]>('statusBarSymbols', ['○', '◔', '◑', '◕', '●']);
-  const statusBarSymbols = Array.isArray(rawSymbols)
-    ? rawSymbols.map((item) => String(item)).filter((item) => item.length > 0)
-    : ['○', '◔', '◑', '◕', '●'];
-  const rawWeeklySymbols = config.get<string[]>('weeklyStatusBarSymbols', []);
-  const weeklyStatusBarSymbols = Array.isArray(rawWeeklySymbols)
-    ? rawWeeklySymbols.map((item) => String(item)).filter((item) => item.length > 0)
-    : [];
-  const weeklyResetDay = config.get<string>('weeklyResetDay', 'rolling');
-  const weeklyResetHour = Math.min(23, Math.max(0, config.get<number>('weeklyResetHour', 0)));
   return {
-    updateInterval,
-    warningThreshold,
+    updateInterval: clamp(config.get<number>('updateInterval', 300), 60),
+    warningThreshold: clamp(config.get<number>('warningThreshold', 90), 0, 100),
     showNotifications: config.get<boolean>('showNotifications', true),
-    localFiveHourLimit,
-    localSevenDayLimit,
-    localSevenDayOpusLimit,
-    statusBarTemplate,
-    statusBarSymbols: statusBarSymbols.length ? statusBarSymbols : ['○', '◔', '◑', '◕', '●'],
-    weeklyResetDay,
-    weeklyResetHour,
-    weeklyStatusBarSymbols
+    localFiveHourLimit: clamp(config.get<number>('localFiveHourLimit', 5_000_000), 1),
+    localSevenDayLimit: clamp(config.get<number>('localSevenDayLimit', 200_000_000), 1),
+    localSevenDayOpusLimit: clamp(config.get<number>('localSevenDayOpusLimit', 50_000_000), 1),
+    statusBarTemplate: config.get<string>('statusBarTemplate', '{pie} Claude {perc}'),
+    statusBarSymbols: getSymbolsList(config, 'statusBarSymbols', ['○', '◔', '◑', '◕', '●']),
+    weeklyResetDay: config.get<string>('weeklyResetDay', 'rolling'),
+    weeklyResetHour: clamp(config.get<number>('weeklyResetHour', 0), 0, 23),
+    weeklyStatusBarSymbols: getSymbolsList(config, 'weeklyStatusBarSymbols', [])
   };
 }
