@@ -3,7 +3,7 @@ id: TASK-3
 title: >-
   claudeUsage → jsonl-usage-reader. Replace the divergent local reader with
   claudeUsage as source of truth
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-14 01:38'
 updated_date: '2026-08-14 01:38'
