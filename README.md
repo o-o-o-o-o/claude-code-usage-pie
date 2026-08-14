@@ -2,41 +2,31 @@
 
 Monitor Claude Code usage from VS Code and display the current state in the status bar.
 
-## Why this extension is local-first
+## Where usage comes from
 
-This extension primarily reads usage from Claude Code local JSONL logs under `~/.claude/projects/`.
+Two sources, tried in order:
 
-That is the most reliable source for this use case because:
+1. **Anthropic's OAuth API** (`AnthropicUsageClient`) — the account's own access token, read from the macOS Keychain. No prose parsing, but the endpoint can reject the token (`401 OAuth authentication is currently not supported`) depending on account state.
+2. **`sd llm claudeUsage --json --live --no-week --no-calibrate`** — shells out to the Scripts repo's `llm/claudeUsage`, which calls `claude -p "/usage"` for the server's own reported percentages. This is the primary source in practice, since the OAuth endpoint frequently rejects.
 
-- Claude Code subscription auth uses an OAuth token from the local CLI environment, not a standard Anthropic API key
-- Anthropic's public API rate-limit headers and API-key flows do not apply cleanly to Claude Code subscription auth
-- The attempted OAuth usage endpoint can reject the token with `401 OAuth authentication is currently not supported`
-- Local JSONL parsing keeps the extension functional even when the remote API is unavailable or unsupported
+**There is no third, estimate tier.** An earlier version divided locally-counted tokens by a configured limit when neither source answered. That was wrong twice over: the limits had been calibrated against a cache-read-weighted token total but were divided into a raw one (~7-8x inflation, pinning every window to 100%), and a hardcoded limit is silently wrong during an account boost regardless. A window with no server-reported percentage is now simply absent, and the status bar says why — a confident wrong percentage is worse than no percentage.
 
-The extension can still perform optional API calibration, but local parsing is the stable path and should be treated as the source of truth for ongoing maintenance.
-
-## Issues encountered and current handling
-
-- OAuth usage endpoint rejection: handled with long backoff to avoid repeated auth noise
-- API retry spam: reduced by explicit backoff windows for auth failures, rate limits, and generic API errors
-- Unknown account limits in local-only mode: handled with configurable fallback token limits
-- Status bar preferences vary by user: handled with configurable symbol arrays and text templates
+**This extension has a hard dependency on the Scripts repo being set up and `sd` resolvable from a non-interactive shell** (`sd` is a zsh function sourced from `.zshrc`, not a PATH executable, so the extension invokes it via `zsh -ic`). If that fails, the status bar shows a clear `sd not found` / `zsh not found` error — not zeros, not fabricated numbers, not a silent fallback to something less accurate.
 
 ## Features
 
-- Local-first usage tracking from Claude Code JSONL logs
-- Optional API calibration when available
+- Server-reported utilization (API, or `claude -p "/usage"` via claudeUsage) preferred over local token counting wherever available
 - Configurable status bar template
 - Configurable status bar symbols from 0% to 100%
-- Configurable local fallback token limits
 - Manual refresh command
 - Warning notifications at configurable thresholds
-- Local-only mode with API sync fully disabled
+- `disableApiSync` to skip the Keychain/API tier entirely and go straight to claudeUsage
 
 ## Requirements
 
-- macOS for the current auth helper path
+- macOS for the Keychain auth helper and the `zsh -ic` invocation of `sd`
 - Claude Code CLI authenticated with `claude`
+- The Scripts repo on this machine, with `sd` resolvable from `.zshrc` (`SD_ROOT` exported, `llm/claudeUsage` present)
 
 ## Commands
 
@@ -48,12 +38,7 @@ The extension can still perform optional API calibration, but local parsing is t
 - `claudeCodeUsagePie.updateInterval` (number, default `300`, minimum `60`)
 - `claudeCodeUsagePie.showNotifications` (boolean, default `true`)
 - `claudeCodeUsagePie.warningThreshold` (number, default `90`)
-- `claudeCodeUsagePie.usageDataSource` (`localFirst` | `apiOnly`, default `localFirst`)
-- `claudeCodeUsagePie.apiSyncIntervalMinutes` (number, default `30`, minimum `5`)
-- `claudeCodeUsagePie.disableApiSync` (boolean, default `false`)
-- `claudeCodeUsagePie.localFiveHourLimit` (number, default `5000000`)
-- `claudeCodeUsagePie.localSevenDayLimit` (number, default `200000000`)
-- `claudeCodeUsagePie.localSevenDayOpusLimit` (number, default `50000000`)
+- `claudeCodeUsagePie.disableApiSync` (boolean, default `false`) — skip the Keychain/OAuth API tier entirely
 - `claudeCodeUsagePie.statusBarTemplate` (string, default `{pie} Claude {perc}`)
 - `claudeCodeUsagePie.statusBarSymbols` (string array, first item = 0%, last item = 100%)
 
@@ -81,10 +66,10 @@ Example:
 
 ## Maintenance notes
 
-- Prefer local-first behavior for new features and bug fixes
-- Treat API sync as optional calibration, not a required dependency
-- If auth-related noise reappears, check the backoff logic before changing polling behavior
-- Keep activation resilient: the status bar should render even if auth or local file reads fail
+- Utilization percentages are only ever server-reported (API, or claudeUsage `--live`). Do not reintroduce token/limit arithmetic: the limits are unknowable locally and change with account boosts
+- `zsh -ic` stdout is not a clean pipe — macOS Terminal's session support writes `Restored session:` and an OSC 7 escape to stdout before the command runs. The reader frames its payload between markers and carries the real exit status in the closing one; keep that framing if you change the invocation
+- `sd llm claudeUsage` is a dependency to read, not to reimplement — see `src/api/claude-usage-reader.ts` for why it's invoked via `zsh -ic` rather than a plain PATH lookup
+- Keep activation resilient: the status bar should render an actionable error rather than silent zeros when the API is unavailable, `sd` is missing, or `sd llm claudeUsage` itself fails
 
 ## Development
 

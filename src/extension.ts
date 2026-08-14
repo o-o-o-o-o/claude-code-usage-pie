@@ -16,9 +16,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   statusBarManager.showLoading();
 
   try {
-    await usageMonitor.start((usage, updatedAt) => {
+    await usageMonitor.start((usage, updatedAt, error) => {
       if (!usage) {
-        statusBarManager.showError('No data');
+        statusBarManager.showError(error ?? 'No data');
       } else {
         statusBarManager.updateUsage(usage, getConfig(), updatedAt);
       }
@@ -71,13 +71,9 @@ function getConfig(): ExtensionConfig {
     updateInterval: clamp(config.get<number>('updateInterval', 300), 60),
     warningThreshold: clamp(config.get<number>('warningThreshold', 90), 0, 100),
     showNotifications: config.get<boolean>('showNotifications', true),
-    localFiveHourLimit: clamp(config.get<number>('localFiveHourLimit', 5_000_000), 1),
-    localSevenDayLimit: clamp(config.get<number>('localSevenDayLimit', 200_000_000), 1),
-    localSevenDayOpusLimit: clamp(config.get<number>('localSevenDayOpusLimit', 50_000_000), 1),
+    disableApiSync: config.get<boolean>('disableApiSync', false),
     statusBarTemplate: config.get<string>('statusBarTemplate', '{pie} Claude {perc}'),
     statusBarSymbols: getSymbolsList(config, 'statusBarSymbols', ['○', '◔', '◑', '◕', '●']),
-    weeklyResetDay: config.get<string>('weeklyResetDay', 'rolling'),
-    weeklyResetHour: clamp(config.get<number>('weeklyResetHour', 0), 0, 23),
     weeklyStatusBarSymbols: getSymbolsList(config, 'weeklyStatusBarSymbols', [])
   };
 }

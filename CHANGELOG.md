@@ -2,6 +2,18 @@
 
 All notable changes to the "Claude Code Usage Pie" extension are documented in this file.
 
+## [0.0.18]
+
+- Usage percentages now come only from the server (Anthropic's API, or `claude -p "/usage"` via `sd llm claudeUsage --live`). The token/limit estimate tier is gone: its limits had been calibrated against a cache-read-weighted token total but were divided into a raw one, inflating every window roughly 7-8x and pinning the pie to 100% whenever the estimate was in use
+- Fixed a warning notification firing every 30 minutes regardless of real usage — the Opus 7-day figure was always a token/limit estimate (no per-model live figure exists), so it sat at a clamped 100% and tripped the threshold. Opus is now shown only when the API reports it
+- Removed the extension's own 426-line JSONL reader in favour of `sd llm claudeUsage`. The local copy had drifted: its deduplication kept the highest-token record and took that record's timestamp, biasing the inferred session start late on 537 of 3,888 requests (up to 67.9s)
+- Fixed the status bar freezing on the loading glyph when a usage read threw unexpectedly, with no indication anything had failed
+- Fixed clicking the error state raising "command not found" — it pointed at a command that was declared but never registered; it now retries
+- Removed `localFiveHourLimit`, `localSevenDayLimit`, `localSevenDayOpusLimit`, `weeklyResetDay` and `weeklyResetHour`, which no longer have any effect, along with `usageDataSource` and `apiSyncIntervalMinutes`, which never did
+- `disableApiSync` now actually works: it skips the Keychain read and the api.anthropic.com call entirely
+
+**Requires the Scripts repo**: usage is read via `sd llm claudeUsage`, so `sd` must resolve from your shell. If it does not, the status bar says so rather than showing zeros.
+
 ## [0.0.17]
 
 - Fixed the tooltip's `Last updated` time always showing "just now" — it was computed at render time instead of from the actual data fetch, so it now shows the real time the usage data was last refreshed

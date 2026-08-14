@@ -1,3 +1,12 @@
+/**
+ * A window's utilization is always a server-reported percentage — from the
+ * Anthropic API, or from `claude -p "/usage"` via claudeUsage's `--live`.
+ * It is never computed from token counts against a limit: a hardcoded limit
+ * is silently wrong during an account boost, and the limits this extension
+ * shipped were calibrated on a differently-weighted token total than the one
+ * they were divided into. A window with no server figure is absent, not
+ * estimated.
+ */
 export interface UsageWindow {
   utilization: number;
   resets_at: string | null;
@@ -14,13 +23,9 @@ export interface ExtensionConfig {
   updateInterval: number;
   showNotifications: boolean;
   warningThreshold: number;
-  localFiveHourLimit: number;
-  localSevenDayLimit: number;
-  localSevenDayOpusLimit: number;
+  disableApiSync: boolean;
   statusBarTemplate: string;
   statusBarSymbols: string[];
-  weeklyResetDay: string;
-  weeklyResetHour: number;
   weeklyStatusBarSymbols: string[];
 }
 

@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/your-username/claude-code-usage-pie.git"
   },
-  "version": "0.0.17",
+  "version": "0.0.18",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -23,10 +23,6 @@
       {
         "command": "claude-code-usage-pie.refresh",
         "title": "Claude Code Usage Pie: Refresh Claude Usage"
-      },
-      {
-        "command": "claude-code-usage-pie.login",
-        "title": "Claude Code Usage Pie: Login to Claude"
       }
     ],
     "configuration": {
@@ -50,43 +46,10 @@
           "maximum": 100,
           "description": "Usage percentage that triggers a warning."
         },
-        "claudeCodeUsagePie.usageDataSource": {
-          "type": "string",
-          "enum": [
-            "localFirst",
-            "apiOnly"
-          ],
-          "default": "localFirst",
-          "description": "Where usage comes from: local JSONL first with API calibration, or API only."
-        },
-        "claudeCodeUsagePie.apiSyncIntervalMinutes": {
-          "type": "number",
-          "default": 30,
-          "minimum": 5,
-          "description": "How often API calibration runs when local-first mode is enabled, in minutes."
-        },
         "claudeCodeUsagePie.disableApiSync": {
           "type": "boolean",
           "default": false,
-          "description": "Disable all API calls. Use local JSONL parsing only (no authentication errors or API noise)."
-        },
-        "claudeCodeUsagePie.localFiveHourLimit": {
-          "type": "number",
-          "default": 5000000,
-          "minimum": 1,
-          "description": "Fallback 5-hour token limit used in local mode when API limits are unavailable."
-        },
-        "claudeCodeUsagePie.localSevenDayLimit": {
-          "type": "number",
-          "default": 200000000,
-          "minimum": 1,
-          "description": "Fallback 7-day token limit used in local mode when API limits are unavailable."
-        },
-        "claudeCodeUsagePie.localSevenDayOpusLimit": {
-          "type": "number",
-          "default": 50000000,
-          "minimum": 1,
-          "description": "Fallback 7-day Opus token limit used in local mode when API limits are unavailable."
+          "description": "Skip Anthropic's OAuth API entirely (no Keychain read, no network call to api.anthropic.com) and read usage from claudeUsage only."
         },
         "claudeCodeUsagePie.statusBarTemplate": {
           "type": "string",
@@ -99,35 +62,13 @@
             "type": "string"
           },
           "default": [
-            "○",
-            "◔",
-            "◑",
-            "◕",
-            "●"
+            "\u25cb",
+            "\u25d4",
+            "\u25d1",
+            "\u25d5",
+            "\u25cf"
           ],
           "description": "Symbols for usage progression from 0% to 100%. First item is 0%, last item is 100%."
-        },
-        "claudeCodeUsagePie.weeklyResetDay": {
-          "type": "string",
-          "enum": [
-            "rolling",
-            "Sunday",
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday"
-          ],
-          "default": "rolling",
-          "description": "Day of the week when the 7-day usage window resets. Set to 'rolling' for a standard rolling 7-day window."
-        },
-        "claudeCodeUsagePie.weeklyResetHour": {
-          "type": "number",
-          "default": 0,
-          "minimum": 0,
-          "maximum": 23,
-          "description": "Hour of day (0-23, local time) when the weekly usage window resets. Only applies when weeklyResetDay is not 'rolling'."
         },
         "claudeCodeUsagePie.weeklyStatusBarSymbols": {
           "type": "array",

@@ -1,4 +1,4 @@
-import { ClaudeUsage, UsageLevel } from '../types';
+import { ClaudeUsage, UsageLevel, UsageWindow } from '../types';
 
 export class UsageCalculator {
   private static readonly PIE_SYMBOLS = ['○', '◔', '◑', '◕', '●'];
@@ -46,6 +46,9 @@ export class UsageCalculator {
   ): string {
     const utilization = this.getStatusUtilization(usage);
     const pie = this.getUnicodePie(utilization, symbols);
+    // Every percentage reaching here is server-reported (Anthropic API, or
+    // `/usage` via claudeUsage --live); there is no estimated variety left to
+    // distinguish. See "no estimates" in claude-usage-reader.ts.
     const perc = this.formatUtilization(utilization);
 
     const weeklyUtilization = usage.seven_day?.utilization ?? 0;
@@ -85,9 +88,9 @@ export class UsageCalculator {
   static getTooltip(usage: ClaudeUsage, updatedAt: Date): string {
     const BAR_WIDTH = 20;
 
-    const formatRow = (label: string, utilization: number, resetStr: string): string => {
-      const bar = this.getProgressBar(utilization, BAR_WIDTH);
-      const reset = utilization > 0 && resetStr ? `  ${resetStr}` : '';
+    const formatRow = (label: string, window: UsageWindow, resetStr: string): string => {
+      const bar = this.getProgressBar(window.utilization, BAR_WIDTH);
+      const reset = window.utilization > 0 && resetStr ? `  ${resetStr}` : '';
       // padEnd uses JS string length, not visual width.
       // Surrogate pairs (SMP emoji like 🗓) count as 2 in .length but 1 visual char.
       // Variation selectors (U+FE0F) count as 1 in .length but add no visual width.
@@ -101,11 +104,11 @@ export class UsageCalculator {
 
     if (usage.five_hour) {
       const resetStr = this.formatResetTimeAbsolute(usage.five_hour.resets_at, 'block');
-      rows.push(formatRow('⏳', usage.five_hour.utilization, resetStr));
+      rows.push(formatRow('⏳', usage.five_hour, resetStr));
     }
     if (usage.seven_day) {
       const resetStr = this.formatResetTimeAbsolute(usage.seven_day.resets_at, 'weekly');
-      rows.push(formatRow('🗓️', usage.seven_day.utilization, resetStr));
+      rows.push(formatRow('🗓️', usage.seven_day, resetStr));
     }
     const lastUpdated = updatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 

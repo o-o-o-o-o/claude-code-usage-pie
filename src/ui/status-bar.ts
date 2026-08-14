@@ -53,13 +53,26 @@ export class StatusBarManager implements vscode.Disposable {
 
   showError(message: string): void {
     this.statusBarItem.text = `◍ Claude: ${message}`;
+    // ClaudeUsageReader's own error strings all start with "sd " or "zsh " —
+    // the extension has a hard dependency on the Scripts repo's `sd` being
+    // reachable (AC#4); this isn't a login problem, so it must not route to
+    // the login command.
+    const isReaderUnavailable = message.startsWith('sd ') || message.startsWith('zsh ');
     const isRateLimit = message.includes('rate') || message.includes('limit');
-    if (isRateLimit) {
+    if (isReaderUnavailable) {
+      this.statusBarItem.tooltip =
+        `${message}\n\nThis extension reads usage via \`sd llm claudeUsage\` from the Scripts repo. ` +
+        'Make sure it is on PATH (SD_ROOT exported, shell rc sourced), then click to retry.';
+      this.statusBarItem.command = 'claude-code-usage-pie.refresh';
+    } else if (isRateLimit) {
       this.statusBarItem.tooltip = 'Rate limited by API. Using cached data. Will retry in ~60s';
       this.statusBarItem.command = undefined;
     } else {
-      this.statusBarItem.tooltip = 'Click to open Claude login help';
-      this.statusBarItem.command = 'claude-code-usage-pie.login';
+      // Was 'claude-code-usage-pie.login', which is contributed but has no
+      // registerCommand — clicking raised "command not found". Retrying is
+      // the only action this extension actually offers here.
+      this.statusBarItem.tooltip = `${message}\n\nClick to retry.`;
+      this.statusBarItem.command = 'claude-code-usage-pie.refresh';
     }
     this.statusBarItem.color = new vscode.ThemeColor('errorForeground');
     this.statusBarItem.show();
