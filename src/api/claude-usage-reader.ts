@@ -1,4 +1,7 @@
 import { spawn } from 'child_process';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import { ClaudeUsage, UsageWindow } from '../types';
 
 /**
@@ -15,18 +18,23 @@ import { ClaudeUsage, UsageWindow } from '../types';
  *
  * Flags, and why each one:
  *   --json           machine-readable
- *   --live           the whole point: server-reported utilization. Percentages
- *                    are only ever read from here, never computed from tokens
- *                    against a limit — see "no estimates" below.
+ *   (live is the default since claudeUsage TASK-125, 2026-08-25 — no flag
+ *                    needed; the old opt-in `--live` was removed, and passing
+ *                    it now errors as an unknown option.) Server-reported
+ *                    utilization is the whole point: percentages are only
+ *                    ever read from here, never computed from tokens against
+ *                    a limit — see "no estimates" below.
  *   --no-week        the 7-day *token* section is unused now that percentages
- *                    come from --live, and skipping it also skips claudeUsage's
+ *                    come from live, and skipping it also skips claudeUsage's
  *                    `agentsview` cost fetch (60s worst case) that this
  *                    extension never reads. live.week survives --no-week.
- *   --no-calibrate   claudeUsage derives an account limit from --live samples,
- *                    which only works if they are spread across utilization
- *                    levels. Polling on a timer would flood that store with
- *                    near-identical rows and suppress the limit. Read, do not
- *                    contribute.
+ *   (calibration is opt-in via `--calibrate` since TASK-125, so simply not
+ *                    passing it keeps this extension a read-only consumer.
+ *                    Calibration derives an account limit from live samples
+ *                    spread across utilization levels; polling on a timer
+ *                    would flood that store with near-identical rows and
+ *                    suppress the limit — the old opt-out `--no-calibrate`
+ *                    no longer exists and now errors as an unknown option.)
  *
  * No estimates. Earlier revisions fell back to `tokens / configured_limit`
  * when live was unavailable. That was wrong twice over: the limits were
@@ -48,7 +56,6 @@ interface ClaudeUsageLiveWindow {
 }
 
 export interface ClaudeUsagePayload {
-  five_hour?: { resets_at?: unknown } | null;
   live?: {
     session?: ClaudeUsageLiveWindow | null;
     session_error?: unknown;
@@ -73,7 +80,7 @@ const BEGIN = '__CCUP_BEGIN__';
 const END = '__CCUP_END__';
 const COMMAND =
   `print -r -- '${BEGIN}'; ` +
-  'sd llm claudeUsage --json --live --no-week --no-calibrate; ' +
+  'sd llm claudeUsage --json --no-week; ' +
   `__ccup_rc=$?; print -r -- "${END}:$__ccup_rc"`;
 
 /** The framed payload and the command's own exit code, or null if unframed. */
@@ -89,6 +96,64 @@ function unframe(stdout: string): { body: string; code: number } | null {
   return { body, code: Number.isFinite(code) ? code : 0 };
 }
 
+// claudeUsage's own live-endpoint cache (llm/claudeUsage, LIVE_CACHE_FILE):
+// every caller — this extension in any window, claudeResume, a manual run —
+// reads and writes the same file, TTL'd at 60s with its own 429/Retry-After
+// backoff already built in. Each open VSCode window runs this reader on its
+// own independent interval timer, so reading that file directly first, when
+// it is fresh enough, skips spawning a whole zsh+python just to get back
+// data another window (or claudeResume) already fetched moments ago —
+// real overhead with several windows open, each polling every
+// updateInterval. This does not re-implement claudeUsage's own staleness or
+// backoff handling — a cache older than the window below simply falls
+// through to the normal shell-out, which already owns that logic.
+//
+// Endpoint-sourced only: claudeUsage's own load_live_cache() docstring calls
+// it "the last good endpoint response," and only fetch_live_endpoint() calls
+// save_live_cache() — the claude -p "/usage" CLI fallback (used whenever the
+// stored OAuth token needs a refresh this script cannot perform) never
+// writes it. On a machine relying on that fallback this fast path simply
+// never hits, falling through every time — correct, just without the
+// savings this comment otherwise describes.
+const SHARED_LIVE_CACHE_PATH = path.join(os.homedir(), '.claude', 'claudeUsage-live-cache.json');
+// Slack above claudeUsage's own 60s TTL for this read's own latency and
+// clock skew between processes — kept short enough that anything served
+// here is still fresh by claudeUsage's own definition, never staler.
+const SHARED_LIVE_CACHE_MAX_AGE_MS = 75_000;
+
+interface SharedLiveCacheFile {
+  live?: ClaudeUsagePayload['live'];
+  fetched_at?: unknown;
+}
+
+async function readSharedLiveCache(): Promise<ClaudeUsagePayload | null> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(SHARED_LIVE_CACHE_PATH, 'utf8');
+  } catch {
+    return null;
+  }
+
+  let parsed: SharedLiveCacheFile;
+  try {
+    parsed = JSON.parse(raw) as SharedLiveCacheFile;
+  } catch {
+    return null;
+  }
+
+  const fetchedAt = typeof parsed.fetched_at === 'number' ? parsed.fetched_at : null;
+  if (fetchedAt === null || !parsed.live) {
+    return null;
+  }
+
+  const ageMs = Date.now() - fetchedAt * 1000;
+  if (ageMs < 0 || ageMs > SHARED_LIVE_CACHE_MAX_AGE_MS) {
+    return null;
+  }
+
+  return { live: parsed.live };
+}
+
 export class ClaudeUsageReader {
   private static readonly SHELL = '/bin/zsh';
   // The only child work left under --no-week is claudeUsage's `claude -p
@@ -98,6 +163,11 @@ export class ClaudeUsageReader {
   private static readonly MAX_OUTPUT = 10 * 1024 * 1024;
 
   static async readUsage(): Promise<ClaudeUsageResult> {
+    const shared = await readSharedLiveCache();
+    if (shared) {
+      return { payload: shared, error: null };
+    }
+
     const { stdout, stderr, error } = await this.run();
     if (error) {
       return { payload: null, error };
@@ -235,17 +305,18 @@ function liveWindow(window: ClaudeUsageLiveWindow | null | undefined): UsageWind
 export function buildUsageFromPayload(payload: ClaudeUsagePayload): ClaudeUsage {
   const usage: ClaudeUsage = {};
 
+  // live.session's own resets_at, not claudeUsage's separate jsonl-derived
+  // `five_hour` block (no longer read at all — TASK-4). That derived value
+  // is anchored on requests *this machine* wrote to ~/.claude/projects; it
+  // cannot see usage from another device or claude.ai, so it only agrees
+  // with the account's real window when all of today's usage was local and
+  // continuous. 2026-08-26: it did not — the derived block predicted a
+  // reset 1h30m after the account's real one, confirmed via this same live
+  // endpoint. A 2026-08-13 note that the two "matched to the minute" was a
+  // single continuous-usage day, not a guarantee.
   const fiveHour = liveWindow(payload?.live?.session);
   if (fiveHour) {
-    // The JSONL-derived reset is preferred over live's own: claudeUsage
-    // reports it confirmed to the minute against both `/usage` and the
-    // claude.ai page, and it carries seconds where live's prose does not.
-    // Falls back to live's when no local block is open — which does happen,
-    // e.g. a window opened by another machine or by claude.ai.
-    usage.five_hour = {
-      ...fiveHour,
-      resets_at: toIso(payload?.five_hour?.resets_at) ?? fiveHour.resets_at
-    };
+    usage.five_hour = fiveHour;
   }
 
   const week = liveWindow(payload?.live?.week);
